@@ -4,7 +4,7 @@ platforms: java
 author: anuchandy
 ---
 
-#Getting Started with Network - Manage Virtual Machines In Parallel With Network - in Java #
+## Getting Started with Network - Manage Virtual Machines In Parallel With Network - in Java ##
 
 
   Azure Network sample for managing virtual machines with virtual network -
@@ -29,7 +29,7 @@ Set the environment variable `AZURE_AUTH_LOCATION` with the full path for an aut
 
 ## More information ##
 
-[http://azure.com/java] (http://azure.com/java)
+[http://azure.com/java](http://azure.com/java)
 
 If you don't have a Microsoft Azure subscription you can get a FREE trial account [here](http://go.microsoft.com/fwlink/?LinkId=330212)
 
