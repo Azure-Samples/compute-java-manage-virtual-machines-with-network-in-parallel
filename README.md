@@ -4,12 +4,12 @@ languages:
 - java
 products:
 - azure
-services: Network
-platforms: java
-author: yaohaizh
+extensions:
+- services: Network
+- platforms: java
 ---
 
-## Getting Started with Network - Manage Virtual Machines In Parallel With Network - in Java ##
+# Getting Started with Network - Manage Virtual Machines In Parallel With Network - in Java #
 
 
   Azure Network sample for managing virtual machines with virtual network -
