@@ -4,9 +4,8 @@ languages:
 - java
 products:
 - azure
-extensions:
-- services: Network
-- platforms: java
+description: "Azure Network sample for managing virtual machines with virtual network"
+urlFragment: compute-java-manage-virtual-machines-with-network-in-parallel
 ---
 
 # Getting Started with Network - Manage Virtual Machines In Parallel With Network - in Java #
