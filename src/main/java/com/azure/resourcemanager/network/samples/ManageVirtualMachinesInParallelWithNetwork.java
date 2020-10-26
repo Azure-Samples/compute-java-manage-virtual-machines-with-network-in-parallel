@@ -1,36 +1,34 @@
-/**
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for
- * license information.
- */
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
-package com.microsoft.azure.management.network.samples;
+package com.azure.resourcemanager.network.samples;
 
-import com.microsoft.azure.management.Azure;
-import com.microsoft.azure.management.compute.KnownLinuxVirtualMachineImage;
-import com.microsoft.azure.management.compute.VirtualMachine;
-import com.microsoft.azure.management.compute.VirtualMachineSizeTypes;
-import com.microsoft.azure.management.network.Network;
-import com.microsoft.azure.management.network.NetworkSecurityGroup;
-import com.microsoft.azure.management.network.SecurityRuleProtocol;
-import com.microsoft.azure.management.resources.ResourceGroup;
-import com.microsoft.azure.management.resources.fluentcore.arm.Region;
-import com.microsoft.azure.management.resources.fluentcore.model.Creatable;
-import com.microsoft.azure.management.resources.fluentcore.utils.SdkContext;
-import com.microsoft.azure.management.samples.Utils;
-import com.microsoft.azure.management.storage.StorageAccount;
-import com.microsoft.rest.LogLevel;
+import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.policy.HttpLogDetailLevel;
+import com.azure.core.management.AzureEnvironment;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.resourcemanager.AzureResourceManager;
+import com.azure.resourcemanager.compute.models.KnownLinuxVirtualMachineImage;
+import com.azure.resourcemanager.compute.models.VirtualMachine;
+import com.azure.resourcemanager.compute.models.VirtualMachineSizeTypes;
+import com.azure.resourcemanager.network.models.Network;
+import com.azure.resourcemanager.network.models.NetworkSecurityGroup;
+import com.azure.resourcemanager.network.models.SecurityRuleProtocol;
+import com.azure.resourcemanager.resources.models.ResourceGroup;
+import com.azure.core.management.Region;
+import com.azure.resourcemanager.resources.fluentcore.model.Creatable;
+import com.azure.core.management.profile.AzureProfile;
+import com.azure.resourcemanager.samples.Utils;
+import com.azure.resourcemanager.storage.models.StorageAccount;
+import org.apache.commons.lang.time.StopWatch;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import org.apache.commons.lang3.time.StopWatch;
-
 /**
  * Azure Network sample for managing virtual machines with virtual network -
- * Create a virtual network with two Subnets – frontend and backend
+ * Create a virtual network with two Subnets - frontend and backend
  * Frontend allows HTTP in and denies Internet out
  * Backend denies Internet in and Internet out
  * Create m Linux virtual machines in the frontend
@@ -40,24 +38,23 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
 
     /**
      * Main function which runs the actual sample.
-     * @param azure instance of the azure client
+     * @param azureResourceManager instance of the azure client
      * @return true if sample runs successfully
      */
-    public static boolean runSample(Azure azure) {
+    public static boolean runSample(AzureResourceManager azureResourceManager) {
         final int frontendVMCount = 4;
         final int backendVMCount = 4;
-        final String rgName = SdkContext.randomResourceName("rgNEPP", 24);
-        final String frontEndNsgName = SdkContext.randomResourceName("fensg", 24);
-        final String backEndNsgName = SdkContext.randomResourceName("bensg", 24);
-        final String networkName = SdkContext.randomResourceName("vnetCOMV", 24);
-        final String storageAccountName = SdkContext.randomResourceName("stgCOMV", 20);
+        final String rgName = Utils.randomResourceName(azureResourceManager, "rgNEPP", 24);
+        final String frontEndNsgName = Utils.randomResourceName(azureResourceManager, "fensg", 24);
+        final String backEndNsgName = Utils.randomResourceName(azureResourceManager, "bensg", 24);
+        final String networkName = Utils.randomResourceName(azureResourceManager, "vnetCOMV", 24);
+        final String storageAccountName = Utils.randomResourceName(azureResourceManager, "stgCOMV", 20);
         final String userName = "tirekicker";
-        // [SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Serves as an example, not for deployment. Please change when using this in your code.")]
-        final String password = "12NewPA$$w0rd!";
+        final String password = Utils.password();
         final Region region = Region.US_SOUTH_CENTRAL;
         try {
             // Create a resource group [Where all resources gets created]
-            ResourceGroup resourceGroup = azure.resourceGroups().define(rgName)
+            ResourceGroup resourceGroup = azureResourceManager.resourceGroups().define(rgName)
                     .withRegion(region)
                     .create();
 
@@ -67,7 +64,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             // - ALLOW-SSH - allows SSH traffic into the front end subnet
             // - ALLOW-WEB- allows HTTP traffic into the front end subnet
 
-            Creatable<NetworkSecurityGroup> frontEndNSGCreatable = azure.networkSecurityGroups().define(frontEndNsgName)
+            Creatable<NetworkSecurityGroup> frontEndNSGCreatable = azureResourceManager.networkSecurityGroups().define(frontEndNsgName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
                     .defineRule("ALLOW-SSH")
@@ -97,7 +94,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             // - ALLOW-SQL - allows SQL traffic only from the front end subnet
             // - DENY-WEB - denies all outbound internet traffic from the back end subnet
 
-            Creatable<NetworkSecurityGroup> backEndNSGCreatable = azure.networkSecurityGroups().define(backEndNsgName)
+            Creatable<NetworkSecurityGroup> backEndNSGCreatable = azureResourceManager.networkSecurityGroups().define(backEndNsgName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
                     .defineRule("ALLOW-SQL")
@@ -125,7 +122,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             System.out.println("Creating security group for the back ends - allows SSH and denies all outbound internet traffic");
 
             @SuppressWarnings("unchecked")
-            Collection<NetworkSecurityGroup> networkSecurityGroups = azure.networkSecurityGroups()
+            Collection<NetworkSecurityGroup> networkSecurityGroups = azureResourceManager.networkSecurityGroups()
                     .create(frontEndNSGCreatable, backEndNSGCreatable).values();
 
             NetworkSecurityGroup frontendNSG = null;
@@ -147,7 +144,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             Utils.print(backendNSG);
 
             // Create Network [Where all the virtual machines get added to]
-            Network network = azure.networks().define(networkName)
+            Network network = azureResourceManager.networks().define(networkName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
                     .withAddressSpace("172.16.0.0/16")
@@ -162,14 +159,14 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
                     .create();
 
             // Prepare Creatable Storage account definition [For storing VMs disk]
-            Creatable<StorageAccount> creatableStorageAccount = azure.storageAccounts().define(storageAccountName)
+            Creatable<StorageAccount> creatableStorageAccount = azureResourceManager.storageAccounts().define(storageAccountName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup);
 
             // Prepare a batch of Creatable Virtual Machines definitions
             List<Creatable<VirtualMachine>> frontendCreatableVirtualMachines = new ArrayList<>();
             for (int i = 0; i < frontendVMCount; i++) {
-                Creatable<VirtualMachine> creatableVirtualMachine = azure.virtualMachines().define("VM-FE-" + i)
+                Creatable<VirtualMachine> creatableVirtualMachine = azureResourceManager.virtualMachines().define("VM-FE-" + i)
                         .withRegion(region)
                         .withExistingResourceGroup(resourceGroup)
                         .withExistingPrimaryNetwork(network)
@@ -187,7 +184,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             List<Creatable<VirtualMachine>> backendCreatableVirtualMachines = new ArrayList<>();
 
             for (int i = 0; i < backendVMCount; i++) {
-                Creatable<VirtualMachine> creatableVirtualMachine = azure.virtualMachines().define("VM-BE-" + i)
+                Creatable<VirtualMachine> creatableVirtualMachine = azureResourceManager.virtualMachines().define("VM-BE-" + i)
                         .withRegion(region)
                         .withExistingResourceGroup(resourceGroup)
                         .withExistingPrimaryNetwork(network)
@@ -210,7 +207,7 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             StopWatch stopwatch = new StopWatch();
             stopwatch.start();
 
-            Collection<VirtualMachine> virtualMachines = azure.virtualMachines().create(allCreatableVirtualMachines).values();
+            Collection<VirtualMachine> virtualMachines = azureResourceManager.virtualMachines().create(allCreatableVirtualMachines).values();
 
             stopwatch.stop();
             System.out.println("Created virtual machines");
@@ -221,16 +218,11 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
 
             System.out.println("Virtual Machines create: (took " + (stopwatch.getTime() / 1000) + " seconds) ");
             return true;
-        } catch (Exception f) {
-
-            System.out.println(f.getMessage());
-            f.printStackTrace();
-
         } finally {
 
             try {
                 System.out.println("Deleting Resource Group: " + rgName);
-                azure.resourceGroups().deleteByName(rgName);
+                azureResourceManager.resourceGroups().beginDeleteByName(rgName);
                 System.out.println("Deleted Resource Group: " + rgName);
             } catch (NullPointerException npe) {
                 System.out.println("Did not create any resources in Azure. No clean up is necessary");
@@ -239,7 +231,6 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             }
 
         }
-        return false;
     }
 
     /**
@@ -252,18 +243,22 @@ public final class ManageVirtualMachinesInParallelWithNetwork {
             //=============================================================
             // Authenticate
 
-            final File credFile = new File(System.getenv("AZURE_AUTH_LOCATION"));
+            final AzureProfile profile = new AzureProfile(AzureEnvironment.AZURE);
+            final TokenCredential credential = new DefaultAzureCredentialBuilder()
+                .authorityHost(profile.getEnvironment().getActiveDirectoryEndpoint())
+                .build();
 
-            Azure azure = Azure.configure()
-                    .withLogLevel(LogLevel.BASIC)
-                    .authenticate(credFile)
-                    .withDefaultSubscription();
+            AzureResourceManager azureResourceManager = AzureResourceManager
+                .configure()
+                .withLogLevel(HttpLogDetailLevel.BASIC)
+                .authenticate(credential, profile)
+                .withDefaultSubscription();
 
             // Print selected subscription
-            System.out.println("Selected subscription: " + azure.subscriptionId());
+            System.out.println("Selected subscription: " + azureResourceManager.subscriptionId());
 
-            runSample(azure);
-       } catch (Exception e) {
+            runSample(azureResourceManager);
+        } catch (Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
         }
